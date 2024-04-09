@@ -1,0 +1,43 @@
+#pre-requisites; launch 3 instances with centos7
+# SSH all 3 instances
+cd Downloads
+chmod 400 Ansible-key.pem
+ssh -i "Ansible-key.pem" centos@ec2-54-177-144-110.us-west-1.compute.amazonaws.com      (copy example; edit ec2-user)
+sudo hostname ansible-master                    (private ip to master)
+exit
+recall SSH commend
+#(create ansible user and password in all the 3 instances)
+sudo useradd ansible
+sudo passwd ansible
+
+#edit the sshd_config file of all your 3 servers to allow the password based login 
+sudo sed -i 's/.*PasswordAuthentication no/Passwordauthentication yes/g' /etc/ssh/sshd_config
+sudo sed -i 's/.*#PermitRootLogin yes/PermitRootLogin yes/g' /etc/ssh/sshd_config 
+#(elevate centos to root user (Allow ansible to work as root without requiring a passwd)
+sudo su                                                            
+sudo echo "ansible  ALL=(ALL)       NOPASSWD: ALL" >> /etc/sudoers 
+sudo cat /etc/ssh/sshd_config  (verifying the sshd file)
+sudo cat /etc/sodoer           (verifying sodoer file)
+sudo service sshd restart      (restart for the config to take effect)
+
+#(To get Ansible for CentOS 7,first ensure that the CentOS 7 EPEL repo is installed)
+sudo yum install epel-release -y 
+sudo yum install ansible -y        (install ansible)             sudo yum remove ansible 
+sudo vi /etc/ansible/hosts       (Ansible keeps track of all of the servers that it knows.Pregister both ip of node1&2 to the ansible; also remover # on webservers..space consider alignement)
+sudo nano /etc/ansible/hosts      (same command nano instead of vi)
+exit (the next commend pass on Download folder)
+
+#In your ansible-master, login as user ansible and generate ssh key on ansible control server
+#exit (to logout of centos user)(ansible@ip's password: created with ansible user)
+ssh ansible@ip-master   
+
+#(creating private and public key, Create an ssh key in master server and copy it to node serversThis will create .ssh folder (/home/ansadm/.ssh). Hit enter all the way through
+ssh-keygen -t rsa     
+
+cat .ssh/id_rsa.pub (trying to read the public key)
+#(700; read4(r);write2(w), execution1(x) so chmod700; grps and others has no permission 0)
+chmod 700 /home/ansible/.ssh   
+
+#(share the keys for master to connect; verify the user ansible passwd)
+ssh-copy-id ansible@ip-node1 & node2 
+ansible  webservers -m ping  (check if the group can connect by ping); succes:green color
