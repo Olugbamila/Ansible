@@ -1,0 +1,77 @@
+#  Ansible dynamic inventory set-up with user data
+# Pre-requisites:
+# 1. Create 1  EC2 Amazon Linux instance with t2.micro, AMI ID (ami-0bb4c991fa89d4b9b), IAM Role to have (EC2ReadAccess permissions) and add the (control node user data) & name it as ansible-control-node
+# Control Node user data
+#!/bin/bash
+sudo amazon-linux-extras install ansible2 -y
+sudo yum install python-pip -y
+sudo pip install boto3
+sudo useradd ansadmin
+sudo echo ansadmin:ansadmin | chpasswd
+sudo sed -i "s/.*#host_key_checking = False/host_key_checking = False/g" /etc/ansible/ansible.cfg
+sudo sed -i "s/.*PasswordAuthentication no/PasswordAuthentication yes/g" /etc/ssh/sshd_config
+sudo echo "%wheel  ALL=(ALL)       NOPASSWD: ALL" >>/etc/sudoers
+sudo sed -i 's/.*#PermitRootLogin yes/PermitRootLogin yes/g' /etc/ssh/sshd_config
+sudo usermod -aG wheel ansadmin
+sudo service sshd restart
+sudo sed -i "s/.*#enable_plugins = host_list, virtualbox, yaml, constructed/enable_plugins = aws_ec2/g" /etc/ansible/ansibl
+sudo ansible-galaxy collection install amazon.aws
+# 2. Create 3 EC2 Amazon Linux nstances, name them (dev-node, stage-node, prod-node and pass additional Environment tag (dev, stage, and prod.), select t2.micro Instances with 22 ports allowing master EC2 IP in the security group and use the the host nodes user data below.
+# Host Nodes user data
+#!/bin/bash
+sudo yum update –y
+sudo useradd ansadmin
+sudo echo "ansadmin:ansadmin" | chpasswd
+sudo sed -i "s/.*PasswordAuthentication no/PasswordAuthentication yes/g" /etc/ssh/sshd_config
+sudo sed -i 's/.*#PermitRootLogin yes/PermitRootLogin yes/g' /etc/ssh/sshd_config
+sudo echo "%wheel  ALL=(ALL)       NOPASSWD: ALL" >> /etc/sudoers
+sudo usermod -aG wheel ansadmin
+sudo service sshd restart
+# SSH into ansible-control-node & change to the ansadmin user with the commands below
+sudo su ansadmin
+cd
+# Let's create a file for Ansible Dynamic Inventory Plugin copy paste the yml file from aws_ec2.yml
+nano aws_ec2.yml
+# Paste below play in the file.
+plugin: aws_ec2
+regions:
+  - us-east-1
+filters:
+  tag:Environment:
+    - dev
+    - stage
+    - prod
+  instance-state-name: running
+keyed_groups:
+  - key: tags
+    prefix: tag
+# Now, replace the ansible configuration file to refer the inventory from the newly added aws_ec2.yml
+sudo sed -i 's/^#inventory\s*=.*/inventory = \/home\/ansadmin\/aws_ec2.yml/' /etc/ansible/ansible.cfg
+# To test dynamic Inventory
+ansible-inventory -i aws_ec2.yml --list
+# As the inventory works, let's create a playbook to deploy the application using the ansible dynamic inventory.
+# Create a Ansible Playbook by copying the code from web-app-hosts.yml
+ nano web-app.yml
+# Paste below Playbook in the file.
+---
+- name: sample playbook
+  hosts: "{{hosts}}"
+  become: true
+  tasks:
+    - name: install httpd
+      yum:
+          name: httpd
+          state: latest
+    - name: run httpd
+      service:
+              name: httpd
+              state: started
+    - name: create content
+      copy:
+          content: "CONGRATULATIONS to victory team!"
+          dest: /var/www/html/index.html
+# To test ansible-playbook run below command
+ansible-playbook -i aws_ec2.yml web-app.yml --extra-vars "ansible_user=ansadmin ansible_password=ansadmin hosts=tag_Environment_dev”
+# Run below command if you want to target all 3 Envinronments (dev, stage, prod)
+ansible-playbook -i aws_ec2.yml web-app.yml --extra-vars "ansible_user=ansadmin ansible_password=ansadmin hosts=tag_Environment_stage,tag_Environment_dev,tag_Environment_prod"
+# NOTE! if command don't execute remove the quotes and add them again.
