@@ -1,0 +1,39 @@
+# Ansible Tower Setup
+# Launch an Ec2 Instance "Ansible Tower Server" Ami "Red Hat Linux 8" instance type "t3.Large" minimum memory needs to be at least 4gb memory.
+# Select key pair
+# Network Type "All Traffic"
+# Storage 30gb
+# Launch the instance 
+ssh into the instance 
+sudo yum update -y
+sudo yum install wget -y
+sudo wget https://releases.ansible.com/ansible-tower/setup/ansible-tower-setup-latest.tar.gz (installs ansible folder in a zip format)
+ls (to check the zipped folder)
+tar xvzf ansible-tower-setup-latest.tar.gz (it unzips the zipped folder)
+ls (to check the unzipped and zipped folder (blue for unzip and red is zipped))
+cd (into the un-zipped folder/directory)
+ls (to see the contents in the folder)
+vi inventory (put "ansible" between admin_password and pg_password and save (admin_password='ansible' and pg_password='ansible') )
+sudo ./setup.sh (to run a script that sets up the ansibe)(this takes about 10-15mins)
+paste the public ip on the browser to login (Usename "admin" password "ansible" )
+click on "request subsciption" "start trial" "register or login"
+Paste the username and password created and "get subscription" select the 60days subscription, agree to the T/C and submit .
+Create a new repository name "ansible tower" description "ansible tower setup" check the "README.md file" and create.
+click on this link https://github.com/avinashmamidi/jjtech-Ansible-Tower and fork to your repository 
+#set up 1st credential to connect ansible tower to github repsoitory
+Click credentials, name "Github" description "Github" Organization "Default" credential type "source control" 
+username and password "input github username and password" and save
+#set up 2nd credential for AWS so as to allow ansible to create any service within AWS.
+Click credentials, name "AWS" description "AWS" Organization "Default" credential type "Amazon Web Services"
+Go to the aws console and create credentials "access key and secret access key" select "third party service"
+click on projects name "S3-bucket-creation" description "S3-bucket-creation" Organization "Default" scm type "Git" 
+scm URL "copy the url of the github repository" scm Branch "master" scm credentials "github" and save.
+Click on template "job template" name "Create-S3-Bucket" Description "Create-S3-Bucket" Job Type "Run" Inventory "Demo Inventory"
+Project "select the created project" Credentials machine "Amazon Web Services" name"select the aws credential created"
+click on edit survey prompt "Enter unique bucket name" Description "Enter unique bucket name" Answer variable name "S3_Bucket_Name"
+Answer type "Text" Minimum Length "12" Maximum Length "1024" and save 
+Click on the template and launch  
+Enter a unique bucket name 
+click on next
+Click on launch 
+The status should be successful and verify on the console to see if the bucket is created.

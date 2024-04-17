@@ -1,6 +1,8 @@
 #  Ansible dynamic inventory set-up with user data
 # Pre-requisites:
-# 1. Create 1  EC2 Amazon Linux instance with t2.micro, AMI ID (ami-0bb4c991fa89d4b9b), IAM Role to have (EC2ReadAccess permissions) and add the (control node user data) & name it as ansible-control-node
+# 1. Create IAM Role to have (EC2FullAccess Permissions)
+# Create 1  EC2 Amazon Linux (2) instance with t2.micro, IAM Role to have (EC2FullAccess Permissions) and add the (control node user data) & name it as ansible-control-node
+#Allow only SSH for Security Group And Source to the internet
 # Control Node user data
 #!/bin/bash
 sudo amazon-linux-extras install ansible2 -y
@@ -14,9 +16,12 @@ sudo echo "%wheel  ALL=(ALL)       NOPASSWD: ALL" >>/etc/sudoers
 sudo sed -i 's/.*#PermitRootLogin yes/PermitRootLogin yes/g' /etc/ssh/sshd_config
 sudo usermod -aG wheel ansadmin
 sudo service sshd restart
-sudo sed -i "s/.*#enable_plugins = host_list, virtualbox, yaml, constructed/enable_plugins = aws_ec2/g" /etc/ansible/ansibl
+sudo sed -i "s/.*#enable_plugins = host_list, virtualbox, yaml, constructed/enable_plugins = aws_ec2/g" /etc/ansible/ansible.cfg
 sudo ansible-galaxy collection install amazon.aws
-# 2. Create 3 EC2 Amazon Linux nstances, name them (dev-node, stage-node, prod-node and pass additional Environment tag (dev, stage, and prod.), select t2.micro Instances with 22 ports allowing master EC2 IP in the security group and use the the host nodes user data below.
+# 2. Create 3 EC2 Amazon Linux nstances, name them (dev-host-node, stage-host-node, prod-host-node and pass additional Environment tag only for dev (key(Environment)value(dev) 
+# stage, and prod additional tags needs to be done after the instaces has been launched
+# select t2.micro Instances with 22 ports allowing master EC2 IP in the security group and use the the host nodes user data below.
+#Allow  SSH and HTTP for Security Group And Source of SSH and HTTP to the internet 
 # Host Nodes user data
 #!/bin/bash
 sudo yum update –y
@@ -30,12 +35,13 @@ sudo service sshd restart
 # SSH into ansible-control-node & change to the ansadmin user with the commands below
 sudo su ansadmin
 cd
+pwd ( to see if it switched to /home/ansadmin)
 # Let's create a file for Ansible Dynamic Inventory Plugin copy paste the yml file from aws_ec2.yml
-nano aws_ec2.yml
+nano aws_ec2.yml (to create a file named aws_ec2.yml )
 # Paste below play in the file.
 plugin: aws_ec2
 regions:
-  - us-east-1
+  - us-east-2
 filters:
   tag:Environment:
     - dev
@@ -45,6 +51,7 @@ filters:
 keyed_groups:
   - key: tags
     prefix: tag
+#ctrl+x and y to save
 # Now, replace the ansible configuration file to refer the inventory from the newly added aws_ec2.yml
 sudo sed -i 's/^#inventory\s*=.*/inventory = \/home\/ansadmin\/aws_ec2.yml/' /etc/ansible/ansible.cfg
 # To test dynamic Inventory
@@ -71,7 +78,8 @@ ansible-inventory -i aws_ec2.yml --list
           content: "CONGRATULATIONS to victory team!"
           dest: /var/www/html/index.html
 # To test ansible-playbook run below command
-ansible-playbook -i aws_ec2.yml web-app.yml --extra-vars "ansible_user=ansadmin ansible_password=ansadmin hosts=tag_Environment_dev”
+ansible-playbook -i aws_ec2.yml web-app.yml --extra-vars "ansible_user=ansadmin ansible_password=ansadmin hosts=tag_Environment_dev"
+#The command above if it works will deploy an apache application on the node servers and we'll be able to see our html content.
 # Run below command if you want to target all 3 Envinronments (dev, stage, prod)
 ansible-playbook -i aws_ec2.yml web-app.yml --extra-vars "ansible_user=ansadmin ansible_password=ansadmin hosts=tag_Environment_stage,tag_Environment_dev,tag_Environment_prod"
 # NOTE! if command don't execute remove the quotes and add them again.
