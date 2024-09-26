@@ -3,27 +3,28 @@
 cd Downloads
 chmod 400 Ansible-key.pem
 ssh -i "Ansible-key.pem" centos@ec2-54-177-144-110.us-west-1.compute.amazonaws.com      (copy example; edit ec2-user)
-sudo hostname ansible-master                    (private ip to master)
+sudo hostname ansible-master   (to change the host name ) (public ip to master)
 exit
 recall SSH commend
 #(create ansible user and password in all the 3 instances)
 sudo useradd ansible
 sudo passwd ansible
-
-#edit the sshd_config file of all your 3 servers to allow the password based login 
-sudo sed -i 's/.*PasswordAuthentication no/Passwordauthentication yes/g' /etc/ssh/sshd_config
-sudo sed -i 's/.*#PermitRootLogin yes/PermitRootLogin yes/g' /etc/ssh/sshd_config 
-#(elevate centos to root user (Allow ansible to work as root without requiring a passwd)
+#edit the sshd_config file of all your 3 servers to allow the password based login (manually)
+sudo vi /etc/ssh/sshd_cofig
+#edit the sshd_config file of all your 3 servers to allow the password based login (automatically) 
+sudo sed -i 's/.*PasswordAuthentication no/Passwordauthentication yes/g' /etc/ssh/sshd_config    (it will edit the server by changing the Passwordauthentication from no to yes)
+sudo sed -i 's/.*#PermitRootLogin yes/PermitRootLogin yes/g' /etc/ssh/sshd_config     (To enable/ PermitRootLogin by uncommenting it    )
+#(elevate centos to root user (Allow ansible to work as root without requiring a passwd)(on all 3 servers)
 sudo su                                                            
 sudo echo "ansible  ALL=(ALL)       NOPASSWD: ALL" >> /etc/sudoers 
 sudo cat /etc/ssh/sshd_config  (verifying the sshd file)
-sudo cat /etc/sodoer           (verifying sodoer file)
+sudo cat /etc/sudoers           (verifying sodoer file)
 sudo service sshd restart      (restart for the config to take effect)
 
-#(To get Ansible for CentOS 7,first ensure that the CentOS 7 EPEL repo is installed)
-sudo yum install epel-release -y 
+#(To get Ansible for CentOS 7,first ensure that the CentOS 7 EPEL repo is installed) (Run only on the master)
+sudo yum install epel-release -y (installs the EPEL repository package using the YUM package manager )
 sudo yum install ansible -y        (install ansible)             sudo yum remove ansible 
-sudo vi /etc/ansible/hosts       (Ansible keeps track of all of the servers that it knows.Pregister both ip of node1&2 to the ansible; also remover # on webservers..space consider alignement)
+sudo vi /etc/ansible/hosts       (Ansible keeps track of all of the servers that it knows.Pregister both ip of node1&2 to the ansible; also remove # on webservers..space consider alignement)
 sudo nano /etc/ansible/hosts      (same command nano instead of vi)
 exit (the next commend pass on Download folder)
 
